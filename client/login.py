@@ -1,7 +1,7 @@
 """A module to handle client login UI"""
 import tkinter as tk
 from server.authenticate_params import AuthStatus
-from .client import AuthClient,AuthClientEventWrapper,ActiveClient
+from .client import AuthClientEventWrapper,ActiveClient
 
 class AuthenciateUser():
     """An object that handles all the ui to retrieve authenticated user details from the user"""
@@ -45,13 +45,13 @@ class AuthenciateUser():
         self.main_window.mainloop()
 
     def _handle_login_button_click(self) -> None:
-        self.active_client = ActiveClient(
-            AuthClientEventWrapper(
-            self.my_user_name_entry.get(),self.my_password_entry.get(),self._auth_response))
-
         self.my_password_entry["state"] = "disable"
         self.my_user_name_entry["state"] = "disable"
         self.server_status_label["text"] = ""
+
+        self.active_client = ActiveClient(
+            AuthClientEventWrapper(
+            self.my_user_name_entry.get(),self.my_password_entry.get(),self._auth_response))
 
     def _auth_response(self, status: AuthStatus) -> None:
             if status == AuthStatus.SUCCESS:
@@ -67,6 +67,10 @@ class AuthenciateUser():
                 self.my_password_entry["state"] = "normal"
                 self.my_user_name_entry["state"] = "normal"
 
+            elif status == AuthStatus.NETWORK_ERROR:
+                self.server_status_label["text"] = "network_error"
+                self.my_password_entry["state"] = "normal"
+                self.my_user_name_entry["state"] = "normal"
 
     def retrieve_client(self) -> ActiveClient:
         """Retrieve the Authclient populated by the user"""

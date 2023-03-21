@@ -44,13 +44,20 @@ class ActiveClient():
         self._active = True
 
         if communication_socket is None:
-            self.communication_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.communication_socket.connect((SERVER_HOST,SERVER_PORT))
+            try:
+                self.communication_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.communication_socket.connect((SERVER_HOST,SERVER_PORT))
 
-            self._listening_thread = threading.Thread(target=self._message_recieve, daemon=True)
-            self._listening_thread.start()
+                self._listening_thread = threading.Thread(target=self._message_recieve, daemon=True)
+                self._listening_thread.start()
+            except ConnectionRefusedError:
+                self.user_details.status = AuthStatus.NETWORK_ERROR
         else:
             self.communication_socket = communication_socket
+
+    def is_successful(self) -> bool:
+        """Determine if the activation process is successful"""
+        return self.user_details.status == AuthStatus.SUCCESS
 
     def _message_recieve(self):
         self.communication_socket.settimeout(1)

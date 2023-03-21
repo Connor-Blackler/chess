@@ -17,7 +17,6 @@ class ActiveServer():
         self._server_socket.listen()
 
     def _authenticate_user(self, client: AuthClient) -> AuthStatus:
-        return AuthStatus.SUCCESS
         if client.username == "bob" and client.password == "bob2":
             return AuthStatus.SUCCESS
 
