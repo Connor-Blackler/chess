@@ -54,23 +54,23 @@ class AuthenciateUser():
             self.my_user_name_entry.get(),self.my_password_entry.get(),self._auth_response))
 
     def _auth_response(self, status: AuthStatus) -> None:
-            if status == AuthStatus.SUCCESS:
-                self.main_window.destroy()
+        if status == AuthStatus.SUCCESS:
+            self.main_window.destroy()
 
-            elif status == AuthStatus.INCORRECT_PASSWORD:
-                self.server_status_label["text"] = "incorrect_password"
-                self.my_password_entry["state"] = "normal"
-                self.my_user_name_entry["state"] = "normal"
+        elif status == AuthStatus.INCORRECT_PASSWORD:
+            self.server_status_label["text"] = "incorrect_password"
+            self.my_password_entry["state"] = "normal"
+            self.my_user_name_entry["state"] = "normal"
 
-            elif status == AuthStatus.INCORRECT_USER:
-                self.server_status_label["text"] = "incorrect_user"
-                self.my_password_entry["state"] = "normal"
-                self.my_user_name_entry["state"] = "normal"
+        elif status == AuthStatus.INCORRECT_USER:
+            self.server_status_label["text"] = "incorrect_user"
+            self.my_password_entry["state"] = "normal"
+            self.my_user_name_entry["state"] = "normal"
 
-            elif status == AuthStatus.NETWORK_ERROR:
-                self.server_status_label["text"] = "network_error"
-                self.my_password_entry["state"] = "normal"
-                self.my_user_name_entry["state"] = "normal"
+        elif status == AuthStatus.NETWORK_ERROR:
+            self.server_status_label["text"] = "network_error"
+            self.my_password_entry["state"] = "normal"
+            self.my_user_name_entry["state"] = "normal"
 
     def retrieve_client(self) -> ActiveClient:
         """Retrieve the Authclient populated by the user"""
