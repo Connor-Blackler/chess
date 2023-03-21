@@ -1,24 +1,18 @@
 """A module that handles the main loop for the client connection"""
 
-import threading
 from client.client import ActiveClient
+from client.login import AuthenciateUser
+from client.client_main_window import main_window
+
+def _retrieve_authenticated_user() -> ActiveClient:
+    auth_user_ui = AuthenciateUser()
+    my_client = auth_user_ui.retrieve_client()
+
+    return my_client
 
 def main() -> None:
     """Main loop where the client is constructed and polled"""
-    print("what is your nickname?")
-    my_client = ActiveClient(nickname=input(""))
-
-    def write(my_client: ActiveClient):
-        while True:
-            new_message = input("")
-            if new_message == "q" or new_message == "quit":
-                my_client.communication_socket.close()
-                del my_client
-                break
-
-            my_client.send_message(new_message)
-
-    write_thread = threading.Thread(target=write, args=(my_client,))
-    write_thread.start()
+    my_client = _retrieve_authenticated_user()
+    main = main_window(my_client)
 
 main()
