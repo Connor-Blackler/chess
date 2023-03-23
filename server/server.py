@@ -7,6 +7,7 @@ import sys
 from client.client import ActiveClient,AuthClient
 from .authenticate_params import AuthStatus
 from .server_details import SERVER_HOST,SERVER_PORT
+from .server_data import UserDatabase
 
 class ActiveServer():
     """A class that represents the server"""
@@ -15,21 +16,15 @@ class ActiveServer():
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind((SERVER_HOST,SERVER_PORT))
         self._server_socket.listen()
+        self._users = UserDatabase()
 
     def _authenticate_user(self, client: AuthClient) -> AuthStatus:
-        if client.username == "bob" and client.password == "bob2":
-            return AuthStatus.SUCCESS
-
-        elif client.username == "bob" and client.password != "bob2":
-            return AuthStatus.INCORRECT_PASSWORD
-
-        else:
-            return AuthStatus.INCORRECT_USER
+        return self._users.confirm_password(client.username, client.password)
 
     def start(self) -> None:
         """A method that polls the server, to handle new connections from a client"""
+        self._server_socket.settimeout(1)
         while True:
-            self._server_socket.settimeout(1)
             try:
                 client_socket, address = self._server_socket.accept()
             except socket.timeout:
@@ -70,8 +65,8 @@ class ActiveServer():
             this_client.communication_socket.send(message.encode("utf-8"))
 
     def _message_recieved(self, client: ActiveClient) -> None:
+        client.communication_socket.settimeout(1)
         while True:
-            client.communication_socket.settimeout(1)
             try:
                 new_message = client.communication_socket.recv(1024).decode("utf-8")
                 print(f"new message received from {client.user_details.username}: {new_message}")

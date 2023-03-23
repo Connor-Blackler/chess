@@ -13,7 +13,10 @@ def _retrieve_authenticated_user() -> ActiveClient:
 def main() -> None:
     """Main loop where the client is constructed and polled"""
     my_client = _retrieve_authenticated_user()
+    if my_client is None:
+        quit()
+
     if my_client.is_successful():
-        main = main_window(my_client)
+        main_window = main_window(my_client)
 
 main()
