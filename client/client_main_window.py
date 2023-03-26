@@ -1,15 +1,15 @@
 """Code to show the main window UI"""
 import tkinter as tk
 from .client import ActiveClient
+from shared_server_client_coms.commands import CommandSendChat
 
 class main_window():
     def __init__(self, client: ActiveClient) -> None:
         self.client = client
-        self.client.send_message("Hello server!")
 
         self.main_window = tk.Tk()
 
-        label = tk.Label(self.main_window, text=f"Welcome {client.user_details.username}!",
+        label = tk.Label(self.main_window, text=f"Welcome {client.get_username()}!",
                          font=("Arial", 26))
         label.pack()
 
@@ -22,4 +22,4 @@ class main_window():
         self.main_window.mainloop()
 
     def _btn_clicked(self) -> None:
-        self.client.send_message(self.message.get())
+        self.client.send_command(CommandSendChat(self.client.get_username(), self.message.get()))

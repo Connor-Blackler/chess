@@ -2,20 +2,19 @@
 
 import socket
 import threading
-import ast
+import sys
 import pickle
 import uuid
 import json
 import base64
 from functools import singledispatchmethod
-from client.client import AuthClient
 from shared_python.shared_design_patterns.singleton_decorator import singleton
 from shared_python.shared_hmac.hmac import Digestable
-from shared_server_client_coms.authenticate_params import AuthStatus
+from shared_server_client_coms.authenticate_params import *
 from shared_server_client_coms.commands import *
 from shared_server_client_coms.transform_data import get_transfer_data,validate_data
 from .server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
-from .server_data import UserDatabase
+from .server_data import UserDatabase,DatabaseInsertState
 
 class _ActiveClient:
     """A class that represents the client connection held by the server"""
@@ -65,9 +64,12 @@ class _ActiveClient:
                 else:
                     print("data is not valid")
 
+                sys.stdout.flush()
+
             except (ConnectionAbortedError, ConnectionResetError, OSError):
                 print("Socket closed")
                 my_socket.close()
+                sys.stdout.flush()
                 break
 
     @singledispatchmethod
@@ -86,10 +88,23 @@ class _ActiveClient:
     def _(self, server_request: CommandAuthenticateUser) -> Command:
         print("got a CommandAuthenticateUser")
 
-        _client_details = AuthClient(server_request.username, server_request.password)
-        authentication_status = ActiveServer().authenticate_user(_client_details)
-        print(f"Authentication request: {_client_details.username}:result: {str(authentication_status)}")
+        authentication_status = ActiveServer().authenticate_user(server_request.username, server_request.password)
+        print(f"Authentication request: {server_request.username}:result: {str(authentication_status)}")
         return CommandAuthenticateUserResponse(authentication_status)
+    
+    @_handle.register
+    def _(self, server_request: CommandCreateUser) -> Command:
+        print("got a CommandCreateUser")
+        authentication_status = ActiveServer().create_user(server_request.username, server_request.password)
+        print(authentication_status)
+        return CommandCreateUserResponse(authentication_status)
+    
+    @_handle.register
+    def _(self, server_request: CommandSendChat) -> Command:
+        print("got a CommandSendChat")
+        print(f"username: {server_request.username} message: {server_request.message}")
+
+        return None
 
 @singleton
 class ActiveServer():
@@ -111,6 +126,17 @@ class ActiveServer():
         for this_client in self._clients:
             this_client.communication_socket.send(message.encode("utf-8"))
 
-    def authenticate_user(self, client: AuthClient) -> AuthStatus:
+    def authenticate_user(self, username: str, password: str) -> AuthStatus:
         """Determine if the client's user name as password is correct"""
-        return self._users.confirm_password(client.username, client.password)
+        return self._users.confirm_password(username, password)
+
+    def create_user(self, username:str, password: str) -> CreateUserStatus:
+        error = self._users.inser_user(username, password)
+        if error == DatabaseInsertState.ALREADY_EXISTS:
+            return CreateUserStatus.USERNAME_TAKEN
+
+        elif error == DatabaseInsertState.SUCCESS:
+            return CreateUserStatus.SUCCESS
+
+        elif error == DatabaseInsertState.DATABASE_ERROR:
+            return CreateUserStatus.NETWORK_ERROR

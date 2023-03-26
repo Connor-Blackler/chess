@@ -5,47 +5,47 @@ import threading
 import json
 import pickle
 import base64
+import sys
 from functools import singledispatchmethod
 from typing import Callable
 from server.server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
-from shared_server_client_coms.authenticate_params import AuthStatus
+from shared_server_client_coms.authenticate_params import *
 from shared_server_client_coms.commands import *
 from shared_server_client_coms.transform_data import Digestable,validate_data,get_transfer_data
 
-AuthClientCallback = Callable[[AuthStatus], None]
-
-class AuthClient():
+class SubmitClient():
     """A class that represents the client's name and password"""
     def __init__(self, username: str, password: str) -> None:
         self.username = username
         self.password = password
-        self._status = AuthStatus.PENDING
+        self._status = None
 
     @property
     def status(self) -> str:
         return self._status
 
     @status.setter
-    def status(self, new_status: AuthStatus) -> None:
+    def status(self, new_status) -> None:
         self._status = new_status
 
-class AuthClientEventWrapper(AuthClient):
-    """A Authclient with additional callback functionality"""
-    def __init__(self, username: str, password: str, callback: AuthClientCallback) -> None:
+class SubmitClientEventWrapper(SubmitClient):
+    """A Submitclient with additional callback functionality"""
+    def __init__(self, username: str, password: str, callback: Callable) -> None:
         super().__init__(username, password)
 
         self.event_callback = callback
 
-    @AuthClient.status.setter
-    def status(self, new_status: AuthStatus) -> None:
+    @SubmitClient.status.setter
+    def status(self, new_status) -> None:
         self._status = new_status
         if self.event_callback is not None:
             self.event_callback(new_status)
 
 class ActiveClient():
     """A class that represents the client connection"""
-    def __init__(self, user_details: AuthClient) -> None:
+    def __init__(self, user_details: SubmitClient) -> None:
         self._user_details = user_details
+        self._create_user = None
         self._digest = Digestable(initial_digest_key())
 
         try:
@@ -58,12 +58,9 @@ class ActiveClient():
         except ConnectionRefusedError:
             self._user_details.status = AuthStatus.NETWORK_ERROR
 
-    def authenticate_user(self, user_details: AuthClient) -> None:
-        """Authenciate the user details via a thread to communicate with the server via TCP"""
-        self._user_details = user_details
-        this_command = CommandAuthenticateUser(user_details.username, user_details.password)
-        self.send_command(this_command)
-
+    def get_username(self) -> str:
+        return self._user_details.username
+    
     def send_command(self, command: Command) -> None:
         """Send a command to the server via a thread"""
         send_thread = threading.Thread(target=self.__send_command_sub,
@@ -73,6 +70,18 @@ class ActiveClient():
     def __send_command_sub(self, com_socket: socket.socket, command: Command, my_digest: Digestable) -> None:
         data = get_transfer_data(command, my_digest)
         com_socket.send(data.encode("utf-8"))
+
+    def authenticate_user(self, user_details: SubmitClient) -> None:
+        """Authenciate the user details via a thread to communicate with the server via TCP"""
+        self._user_details = user_details
+        this_command = CommandAuthenticateUser(user_details.username, user_details.password)
+        self.send_command(this_command)
+
+    def create_user(self, user_details: SubmitClient) -> None:
+        """Authenciate the user details via a thread to communicate with the server via TCP"""
+        self._create_user = user_details
+        this_command = CommandCreateUser(user_details.username, user_details.password)
+        self.send_command(this_command)
 
     def is_successful(self) -> bool:
         """Determine if the activation process is successful"""
@@ -97,6 +106,8 @@ class ActiveClient():
                 communication_socket.close()
                 break
 
+            sys.stdout.flush()
+
     @singledispatchmethod
     def _handle(self, server_request) -> Command:
         """Not implemented"""
@@ -113,5 +124,12 @@ class ActiveClient():
     def _(self, server_request: CommandSuccessfulConnection) -> Command:
         print("got a CommandSuccessfulConnection")
         self._digest = Digestable(server_request.digest_key)
+
+        return None
+    
+    @_handle.register
+    def _(self, server_request: CommandCreateUserResponse) -> Command:
+        print("got a CommandCreateUserResponse")
+        self._create_user.status = server_request.status
 
         return None

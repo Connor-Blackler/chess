@@ -5,7 +5,7 @@ unqiue salted encrpytion is used for each user, stored in seperate databases
 import sqlite3
 from enum import Enum,auto
 from shared_python.shared_database.passwords import hash_password,is_correct_password
-from shared_server_client_coms.authenticate_params import AuthStatus
+from shared_server_client_coms.authenticate_params import *
 
 class DatabaseInsertState(Enum):
     """Enum that represents database key entry"""
