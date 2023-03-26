@@ -3,79 +3,114 @@
 import socket
 import threading
 import ast
-import sys
-from client.client import ActiveClient,AuthClient
-from .authenticate_params import AuthStatus
-from .server_details import SERVER_HOST,SERVER_PORT
+import pickle
+import uuid
+import json
+import base64
+from functools import singledispatchmethod
+from client.client import AuthClient
+from shared_python.shared_design_patterns.singleton_decorator import singleton
+from shared_python.shared_hmac.hmac import Digestable
+from shared_server_client_coms.authenticate_params import AuthStatus
+from shared_server_client_coms.commands import *
+from shared_server_client_coms.transform_data import get_transfer_data,validate_data
+from .server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
 from .server_data import UserDatabase
 
+class _ActiveClient:
+    """A class that represents the client connection held by the server"""
+    def __init__(self, communication_socket: socket.socket) -> None:
+        self.__active = True
+        self.__digestable_key = str(uuid.uuid4())
+        self._communication_socket = communication_socket
+
+        listen_thread = threading.Thread(target=self._listen, args=(communication_socket,))
+        listen_thread.start()
+
+    def kill(self):
+        """Disable the thread driving the TCP socket"""
+        self.__active = False
+
+    def send_command(self, command: Command) -> None:
+        """Send a command to the server via a thread"""
+        send_thread = threading.Thread(target=self.__send_command_sub,
+                                       args=(self._communication_socket, command, Digestable(self.__digestable_key)), daemon=True)
+        send_thread.start()
+
+    def __send_command_sub(self, com_socket: socket.socket, command: Command, my_digest: Digestable) -> None:
+        data = get_transfer_data(command, my_digest)
+        com_socket.send(data.encode("utf-8"))
+
+    def _listen(self, my_socket: socket.socket):
+        intial_digestable = Digestable(initial_digest_key())
+        success_command = CommandSuccessfulConnection(self.__digestable_key)
+        initial_data = get_transfer_data(success_command, intial_digestable)
+        my_socket.send(initial_data.encode("utf-8"))
+
+        my_digestable = Digestable(self.__digestable_key)
+
+        while self.__active:
+            try:
+                data = my_socket.recv(1024)
+                data = json.loads(data.decode("utf-8"))
+
+                if validate_data(data, my_digestable):
+                    command = pickle.loads(base64.b64decode(data["data"]))
+                    print(command)
+                    return_command = self._handle(command)
+
+                    if return_command is not None:
+                        self.send_command(return_command)
+
+                else:
+                    print("data is not valid")
+
+            except (ConnectionAbortedError, ConnectionResetError, OSError):
+                print("Socket closed")
+                my_socket.close()
+                break
+
+    @singledispatchmethod
+    def _handle(self, server_request) -> Command:
+        """Not implemented"""
+        print("got a Command")
+
+    @_handle.register
+    def _(self, server_request: CommandSuccessfulConnection) -> Command:
+        print("got a CommandSuccessfulConnection")
+        self.__digestable_key = Digestable(server_request.digest_key)
+
+        return None
+
+    @_handle.register
+    def _(self, server_request: CommandAuthenticateUser) -> Command:
+        print("got a CommandAuthenticateUser")
+
+        _client_details = AuthClient(server_request.username, server_request.password)
+        authentication_status = ActiveServer().authenticate_user(_client_details)
+        print(f"Authentication request: {_client_details.username}:result: {str(authentication_status)}")
+        return CommandAuthenticateUserResponse(authentication_status)
+
+@singleton
 class ActiveServer():
     """A class that represents the server"""
     def __init__(self) -> None:
-        self._clients: list[ActiveClient] = []
+        self._clients: list[_ActiveClient] = []
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind((SERVER_HOST,SERVER_PORT))
         self._server_socket.listen()
         self._users = UserDatabase()
 
-    def _authenticate_user(self, client: AuthClient) -> AuthStatus:
-        return self._users.confirm_password(client.username, client.password)
-
     def start(self) -> None:
         """A method that polls the server, to handle new connections from a client"""
-        self._server_socket.settimeout(1)
         while True:
-            try:
-                client_socket, address = self._server_socket.accept()
-            except socket.timeout:
-                pass
-            else:
-                print(f"connected: {str(address)}")
-
-                client_socket.settimeout(None)
-                client_socket.send("COMMAND:user_details".encode("utf-8"))
-                user_details = client_socket.recv(1024)
-                user_details = ast.literal_eval(user_details.decode("utf-8"))
-
-                client_details = AuthClient(user_details["username"], user_details["password"])
-                status = self._authenticate_user(client_details)
-                print(f"Authentication request: {client_details.username}: result: {str(status)}")
-
-                if status == AuthStatus.INCORRECT_PASSWORD:
-                    client_socket.send("COMMAND:user_invalid_password".encode("utf-8"))
-
-                elif status == AuthStatus.INCORRECT_USER:
-                    client_socket.send("COMMAND:user_invalid_user".encode("utf-8"))
-
-                elif status == AuthStatus.SUCCESS:
-                    client_socket.send("COMMAND:user_valid".encode("utf-8"))
-                    new_client = ActiveClient(client_details,communication_socket=client_socket)
-
-                    self._clients.append(new_client)
-                    print(f"{new_client.user_details.username} has joined the chat")
-                    self._announce(f"{new_client.user_details.username} has joined the chat")
-
-                    thread = threading.Thread(target=self._message_recieved, args=(new_client,))
-                    thread.start()
-
-            sys.stdout.flush()
+            client_socket, address = self._server_socket.accept()
+            self._clients.append(_ActiveClient(client_socket))
 
     def _announce(self, message: str) -> None:
         for this_client in self._clients:
             this_client.communication_socket.send(message.encode("utf-8"))
 
-    def _message_recieved(self, client: ActiveClient) -> None:
-        client.communication_socket.settimeout(1)
-        while True:
-            try:
-                new_message = client.communication_socket.recv(1024).decode("utf-8")
-                print(f"new message received from {client.user_details.username}: {new_message}")
-                self._announce(f"new message: {client.user_details.username}: {new_message}")
-            except socket.timeout:
-                pass
-            except (ConnectionAbortedError, ConnectionResetError):
-                client.communication_socket.close()
-                self._clients.remove(client)
-                self._announce(f"{client.user_details.username} has left the chat")
-                print(f"{client.user_details.username} has left the chat")
-                break
+    def authenticate_user(self, client: AuthClient) -> AuthStatus:
+        """Determine if the client's user name as password is correct"""
+        return self._users.confirm_password(client.username, client.password)

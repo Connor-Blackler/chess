@@ -5,7 +5,7 @@ unqiue salted encrpytion is used for each user, stored in seperate databases
 import sqlite3
 from enum import Enum,auto
 from shared_python.shared_database.passwords import hash_password,is_correct_password
-from .authenticate_params import AuthStatus
+from shared_server_client_coms.authenticate_params import AuthStatus
 
 class DatabaseInsertState(Enum):
     """Enum that represents database key entry"""
@@ -15,7 +15,7 @@ class DatabaseInsertState(Enum):
 
 class _PasswordDatabase():
     def __init__(self) -> None:
-        self._connection = sqlite3.connect("salts.db")
+        self._connection = sqlite3.connect("salts.db", check_same_thread=False)
         self._cursor = self._connection.cursor()
 
         self._cursor.execute("""
@@ -53,7 +53,7 @@ class UserDatabase():
     hidden in the back-end
     """
     def __init__(self) -> None:
-        self._connection = sqlite3.connect("users.db")
+        self._connection = sqlite3.connect("users.db", check_same_thread=False)
         self._cursor = self._connection.cursor()
         self._password_database = _PasswordDatabase()
 

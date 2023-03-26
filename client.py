@@ -17,6 +17,6 @@ def main() -> None:
         quit()
 
     if my_client.is_successful():
-        main_window = main_window(my_client)
+        this_window = main_window(my_client)
 
 main()

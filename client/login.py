@@ -1,12 +1,13 @@
 """A module to handle client login UI"""
 import tkinter as tk
-from server.authenticate_params import AuthStatus
+from shared_server_client_coms.authenticate_params import AuthStatus
 from .client import AuthClientEventWrapper,ActiveClient
 
 class AuthenciateUser():
     """An object that handles all the ui to retrieve authenticated user details from the user"""
     def __init__(self) -> None:
-        self.active_client = None
+        self._active_client = ActiveClient(AuthClientEventWrapper(
+            "","",self._auth_response))
 
         self.main_window = tk.Tk()
         self.main_window.title("A cool chess game...")
@@ -49,8 +50,7 @@ class AuthenciateUser():
         self.my_user_name_entry["state"] = "disable"
         self.server_status_label["text"] = ""
 
-        self.active_client = ActiveClient(
-            AuthClientEventWrapper(
+        self._active_client.authenticate_user(AuthClientEventWrapper(
             self.my_user_name_entry.get(),self.my_password_entry.get(),self._auth_response))
 
     def _auth_response(self, status: AuthStatus) -> None:
@@ -74,4 +74,4 @@ class AuthenciateUser():
 
     def retrieve_client(self) -> ActiveClient:
         """Retrieve the Authclient populated by the user"""
-        return self.active_client
+        return self._active_client
