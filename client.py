@@ -5,10 +5,10 @@ from client.login import AuthenciateUser
 from client.client_main_window import main_window
 
 def _retrieve_authenticated_user() -> ActiveClient:
-    auth_user_ui = AuthenciateUser()
-    my_client = auth_user_ui.retrieve_client()
+    ret = ActiveClient()
+    auth_user_ui = AuthenciateUser(ret)
 
-    return my_client
+    return ret
 
 def main() -> None:
     """Main loop where the client is constructed and polled"""

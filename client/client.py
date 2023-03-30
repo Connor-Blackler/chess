@@ -6,6 +6,7 @@ import json
 import pickle
 import base64
 import sys
+from dataclasses import dataclass,field
 from functools import singledispatchmethod
 from typing import Callable
 from server.server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
@@ -13,79 +14,114 @@ from shared_server_client_coms.authenticate_params import *
 from shared_server_client_coms.commands import *
 from shared_server_client_coms.transform_data import Digestable,validate_data,get_transfer_data
 
-class SubmitClient():
-    """A class that represents the client's name and password"""
-    def __init__(self, username: str, password: str) -> None:
-        self.username = username
-        self.password = password
-        self._status = None
+@dataclass
+class UserDetails():
+    """A dataclass to store user details and the authentication status"""
+    username: str = ""
+    password: str = ""
+    authentication_status: AuthStatus = AuthStatus.PENDING
 
-    @property
-    def status(self) -> str:
-        return self._status
+class EventCallbacks():
+    """A callback-like class to allow users to override the desired methods
+    acting like a callback
+    """
+    def __init__(self,
+                 authenticate_user_response_callback: Callable[[AuthStatus], None] = None,
+                 successful_connection_callback: Callable[[], None] = None,
+                 connection_error_callback: Callable[[], None] = None,
+                 create_user_response_callback: Callable[[CreateUserStatus], None] = None,
+                 chat_recieved_callback: Callable[[str, str], None] = None) -> None:
 
-    @status.setter
-    def status(self, new_status) -> None:
-        self._status = new_status
+        self._authenticate_user_response_callback = authenticate_user_response_callback
+        self._successful_connection_callback = successful_connection_callback
+        self._connection_error_callback = connection_error_callback
+        self._create_user_response_callback = create_user_response_callback
+        self._chat_recieved_callback = chat_recieved_callback
 
-class SubmitClientEventWrapper(SubmitClient):
-    """A Submitclient with additional callback functionality"""
-    def __init__(self, username: str, password: str, callback: Callable) -> None:
-        super().__init__(username, password)
+    def authenticate_user_response(self, status: AuthStatus) -> None:
+        """Triggers when the server responds to the client after they have
+        requested to authenticate a new user
+        """
+        if self._authenticate_user_response_callback is not None:
+            self._authenticate_user_response_callback(status)
 
-        self.event_callback = callback
+    def successful_connection(self) -> None:
+        """Triggers when the client has succesfully communicated with the server"""
+        if self._successful_connection_callback is not None:
+            self._successful_connection_callback()
 
-    @SubmitClient.status.setter
-    def status(self, new_status) -> None:
-        self._status = new_status
-        if self.event_callback is not None:
-            self.event_callback(new_status)
+    def connection_error(self) -> None:
+        """Triggers when the server recieves a chat message from another client"""
+        if self._connection_error_callback is not None:
+            self._connection_error_callback()
+
+    def create_user_response(self, status: CreateUserStatus) -> None:
+        """Triggers when the server responds to the client after they have
+        requested to create a new user
+        """
+        if self._create_user_response_callback is not None:
+            self._create_user_response_callback(status)
+
+    def chat_recieved(self, username: str, message: str) -> None:
+        """Triggers when the server recieves a chat message from another client"""
+        if self._chat_recieved_callback is not None:
+            self._chat_recieved_callback(username,message)
 
 class ActiveClient():
     """A class that represents the client connection"""
-    def __init__(self, user_details: SubmitClient) -> None:
-        self._user_details = user_details
-        self._create_user = None
+    def __init__(self, callbacks: EventCallbacks = EventCallbacks()) -> None:
+        self._callbacks = callbacks
         self._digest = Digestable(initial_digest_key())
+        self._user_details: UserDetails = None
 
         try:
             self._communication_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._communication_socket.connect((SERVER_HOST,SERVER_PORT))
 
-            self._listen_thread = threading.Thread(target=self._listen, args=(self._communication_socket,), daemon=True)
+            self._listen_thread = threading.Thread(target=self._listen,
+                                                   args=(self._communication_socket,), daemon=True)
             self._listen_thread.start()
 
         except ConnectionRefusedError:
-            self._user_details.status = AuthStatus.NETWORK_ERROR
+            self._callbacks.connection_error()
 
     def get_username(self) -> str:
+        """returns the username of this client"""
         return self._user_details.username
-    
+
     def send_command(self, command: Command) -> None:
         """Send a command to the server via a thread"""
         send_thread = threading.Thread(target=self.__send_command_sub,
-                                       args=(self._communication_socket, command, self._digest), daemon=True)
+                                       args=(self._communication_socket, command,
+                                             self._digest), daemon=True)
         send_thread.start()
 
-    def __send_command_sub(self, com_socket: socket.socket, command: Command, my_digest: Digestable) -> None:
+    def __send_command_sub(self, com_socket: socket.socket, command: Command,
+                           my_digest: Digestable) -> None:
         data = get_transfer_data(command, my_digest)
         com_socket.send(data.encode("utf-8"))
 
-    def authenticate_user(self, user_details: SubmitClient) -> None:
-        """Authenciate the user details via a thread to communicate with the server via TCP"""
-        self._user_details = user_details
-        this_command = CommandAuthenticateUser(user_details.username, user_details.password)
+    def register_event_callback(self, obj: EventCallbacks) -> None:
+        """register a different event callback object to handle responses from the server"""
+        self._callbacks = obj
+
+    def authenticate_user(self, user: UserDetails) -> None:
+        """Send a request to the server to authenticate the user via TCP"""
+        self._user_details = user
+        this_command = CommandAuthenticateUser(user.username, user.password)
         self.send_command(this_command)
 
-    def create_user(self, user_details: SubmitClient) -> None:
-        """Authenciate the user details via a thread to communicate with the server via TCP"""
-        self._create_user = user_details
-        this_command = CommandCreateUser(user_details.username, user_details.password)
+    def create_user(self, user: UserDetails) -> None:
+        """Send a request to the server to create the new user via TCP"""
+        this_command = CommandCreateUser(user.username, user.password)
         self.send_command(this_command)
 
     def is_successful(self) -> bool:
         """Determine if the activation process is successful"""
-        return self._user_details.status == AuthStatus.SUCCESS
+        if self._user_details is None:
+            return False
+
+        return self._user_details.authentication_status == AuthStatus.SUCCESS
 
     def _listen(self, communication_socket: socket.socket) -> None:
         while True:
@@ -117,7 +153,8 @@ class ActiveClient():
     def _(self, server_request: CommandAuthenticateUserResponse) -> Command:
         print("got a CommandAuthenticateUserResponse")
 
-        self._user_details.status = server_request.status
+        self._user_details.authentication_status = server_request.status
+        self._callbacks.authenticate_user_response(server_request.status)
         return None
 
     @_handle.register
@@ -125,11 +162,20 @@ class ActiveClient():
         print("got a CommandSuccessfulConnection")
         self._digest = Digestable(server_request.digest_key)
 
+        self._callbacks.successful_connection()
         return None
-    
+
     @_handle.register
     def _(self, server_request: CommandCreateUserResponse) -> Command:
         print("got a CommandCreateUserResponse")
-        self._create_user.status = server_request.status
+
+        self._callbacks.create_user_response(server_request.status)
+        return None
+
+    @_handle.register
+    def _(self, server_request: CommandSendChat) -> Command:
+        print("got a CommandSendChat")
+        print(f"{server_request.username}, {server_request.message}")
+        self._callbacks.chat_recieved(server_request.username, server_request.message)
 
         return None

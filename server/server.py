@@ -22,6 +22,7 @@ class _ActiveClient:
         self.__active = True
         self.__digestable_key = str(uuid.uuid4())
         self._communication_socket = communication_socket
+        self.username = ""
 
         listen_thread = threading.Thread(target=self._listen, args=(communication_socket,))
         listen_thread.start()
@@ -69,6 +70,7 @@ class _ActiveClient:
             except (ConnectionAbortedError, ConnectionResetError, OSError):
                 print("Socket closed")
                 my_socket.close()
+                ActiveServer().remove_client(self)
                 sys.stdout.flush()
                 break
 
@@ -88,6 +90,7 @@ class _ActiveClient:
     def _(self, server_request: CommandAuthenticateUser) -> Command:
         print("got a CommandAuthenticateUser")
 
+        self.username = server_request.username
         authentication_status = ActiveServer().authenticate_user(server_request.username, server_request.password)
         print(f"Authentication request: {server_request.username}:result: {str(authentication_status)}")
         return CommandAuthenticateUserResponse(authentication_status)
@@ -102,7 +105,7 @@ class _ActiveClient:
     @_handle.register
     def _(self, server_request: CommandSendChat) -> Command:
         print("got a CommandSendChat")
-        print(f"username: {server_request.username} message: {server_request.message}")
+        ActiveServer().announce(server_request)
 
         return None
 
@@ -122,9 +125,15 @@ class ActiveServer():
             client_socket, address = self._server_socket.accept()
             self._clients.append(_ActiveClient(client_socket))
 
-    def _announce(self, message: str) -> None:
+    def announce(self, command: Command) -> None:
         for this_client in self._clients:
-            this_client.communication_socket.send(message.encode("utf-8"))
+            this_client.send_command(command)
+
+    def remove_client(self, client: _ActiveClient):
+        if client in self._clients:
+            print(f"removing client {client}")
+            self._clients.remove(client)
+            self.announce(CommandSendChat("Server:", f"{client.username} has left the chat."))
 
     def authenticate_user(self, username: str, password: str) -> AuthStatus:
         """Determine if the client's user name as password is correct"""

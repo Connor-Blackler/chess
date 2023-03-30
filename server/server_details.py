@@ -1,6 +1,6 @@
 """Details the server will host on"""
 
-SERVER_HOST = "127.0.0.1"
+SERVER_HOST = "192.168.0.10"
 SERVER_PORT = 51542
 
 def initial_digest_key() -> str:
