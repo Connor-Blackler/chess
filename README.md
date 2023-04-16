@@ -5,4 +5,4 @@ A project to:
 - Chat with others who are logged in
 - Commuicate with ChatGPT to make requests
 - Queue up to match againts other players
-- Match with other players and put into a chess match
+- Match with other players and play a chess match
