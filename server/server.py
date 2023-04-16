@@ -129,7 +129,10 @@ class _ActiveClient:
 
         chat_response = self.__chat_bot.send_message(server_request.message)
 
-        return CommandSendChat("ChatGPT", chat_response)
+        ActiveServer().announce(
+            CommandSendChat("ChatGPT", chat_response))
+
+        return None
 
 @singleton
 class ActiveServer():
