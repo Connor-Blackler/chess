@@ -53,3 +53,26 @@ def test_command_send_chat() -> None:
 
     assert send_chat.username == username
     assert send_chat.message == message
+
+def test_command_user_connected() -> None:
+    username = "bob"
+
+    my_command = CommandUserConnected(username)
+
+    assert my_command.username == username
+
+def test_command_connected_users() -> None:
+    users = ["bob", "bill"]
+
+    my_command = CommandConnectedUsers(users)
+
+    assert len(my_command.users) == 2
+    assert my_command.users[0] == users[0]
+    assert my_command.users[1] == users[1]
+
+def test_command_remove_user() -> None:
+    user = "bob"
+
+    my_command = CommandRemoveUser(user)
+
+    assert my_command.username == user
