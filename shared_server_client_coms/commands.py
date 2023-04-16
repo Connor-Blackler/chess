@@ -35,3 +35,21 @@ class CommandSendChat(Command):
     def __init__(self, username: str, message: str) -> None:
         self.username = username
         self.message = message
+
+class CommandUserConnected(Command):
+    """A command that represents when a new user connects"""
+    def __init__(self, username: str) -> None:
+        self.username = username
+
+class CommandConnectedUsers(Command):
+    """A command that holds a list of all connected users"""
+    def __init__(self, users: list[str]) -> None:
+        self.users = users
+
+class CommandRemoveUser(Command):
+    """A command that triggers when a user disconnects"""
+    def __init__(self, username: str) -> None:
+        self.username = username
+
+class CommandRequestUsers(Command):
+    """A command that will ask the server the list of connected clients"""

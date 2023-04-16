@@ -34,10 +34,12 @@ class _ActiveClient:
     def send_command(self, command: Command) -> None:
         """Send a command to the server via a thread"""
         send_thread = threading.Thread(target=self.__send_command_sub,
-                                       args=(self._communication_socket, command, Digestable(self.__digestable_key)), daemon=True)
+                                       args=(self._communication_socket, command,
+                                             Digestable(self.__digestable_key)), daemon=True)
         send_thread.start()
 
-    def __send_command_sub(self, com_socket: socket.socket, command: Command, my_digest: Digestable) -> None:
+    def __send_command_sub(self, com_socket: socket.socket, command: Command,
+                           my_digest: Digestable) -> None:
         data = get_transfer_data(command, my_digest)
         com_socket.send(data.encode("utf-8"))
 
@@ -93,21 +95,29 @@ class _ActiveClient:
         self.username = server_request.username
         authentication_status = ActiveServer().authenticate_user(server_request.username, server_request.password)
         print(f"Authentication request: {server_request.username}:result: {str(authentication_status)}")
+        ActiveServer().announce(CommandUserConnected(server_request.username))
         return CommandAuthenticateUserResponse(authentication_status)
-    
+
     @_handle.register
     def _(self, server_request: CommandCreateUser) -> Command:
         print("got a CommandCreateUser")
         authentication_status = ActiveServer().create_user(server_request.username, server_request.password)
         print(authentication_status)
         return CommandCreateUserResponse(authentication_status)
-    
+
     @_handle.register
     def _(self, server_request: CommandSendChat) -> Command:
         print("got a CommandSendChat")
         ActiveServer().announce(server_request)
 
         return None
+
+    @_handle.register
+    def _(self, server_request: CommandRequestUsers) -> Command:
+        print("got a CommandRequestUsers")
+
+        return CommandConnectedUsers(ActiveServer().get_users())
+
 
 @singleton
 class ActiveServer():
@@ -126,20 +136,32 @@ class ActiveServer():
             self._clients.append(_ActiveClient(client_socket))
 
     def announce(self, command: Command) -> None:
+        """Send a command to every active client currently connected"""
         for this_client in self._clients:
             this_client.send_command(command)
 
     def remove_client(self, client: _ActiveClient):
+        """remove an active client from the list"""
         if client in self._clients:
             print(f"removing client {client}")
             self._clients.remove(client)
             self.announce(CommandSendChat("Server:", f"{client.username} has left the chat."))
+            self.announce(CommandRemoveUser(client.username))
+
+    def get_users(self) -> list[str]:
+        """Returns a list of active users"""
+        ret = []
+        for this_user in self._clients:
+            ret.append(this_user.username)
+
+        return ret
 
     def authenticate_user(self, username: str, password: str) -> AuthStatus:
         """Determine if the client's user name as password is correct"""
         return self._users.confirm_password(username, password)
 
     def create_user(self, username:str, password: str) -> CreateUserStatus:
+        """Attempt to create a new user with the given username and password"""
         error = self._users.inser_user(username, password)
         if error == DatabaseInsertState.ALREADY_EXISTS:
             return CreateUserStatus.USERNAME_TAKEN

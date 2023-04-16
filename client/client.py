@@ -6,7 +6,7 @@ import json
 import pickle
 import base64
 import sys
-from dataclasses import dataclass,field
+from dataclasses import dataclass
 from functools import singledispatchmethod
 from typing import Callable
 from server.server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
@@ -30,13 +30,19 @@ class EventCallbacks():
                  successful_connection_callback: Callable[[], None] = None,
                  connection_error_callback: Callable[[], None] = None,
                  create_user_response_callback: Callable[[CreateUserStatus], None] = None,
-                 chat_recieved_callback: Callable[[str, str], None] = None) -> None:
+                 chat_recieved_callback: Callable[[str, str], None] = None,
+                 users_connected_recieved: Callable[[list[str]], None] = None,
+                 user_connected_recieved_callback: Callable[[str], None] = None,
+                 remove_user_callback: Callable[[str], None] = None) -> None:
 
         self._authenticate_user_response_callback = authenticate_user_response_callback
         self._successful_connection_callback = successful_connection_callback
         self._connection_error_callback = connection_error_callback
         self._create_user_response_callback = create_user_response_callback
         self._chat_recieved_callback = chat_recieved_callback
+        self._users_connected_callback = users_connected_recieved
+        self._user_connected_recieved_callback = user_connected_recieved_callback
+        self._remove_user_callback = remove_user_callback
 
     def authenticate_user_response(self, status: AuthStatus) -> None:
         """Triggers when the server responds to the client after they have
@@ -66,6 +72,26 @@ class EventCallbacks():
         """Triggers when the server recieves a chat message from another client"""
         if self._chat_recieved_callback is not None:
             self._chat_recieved_callback(username,message)
+
+    def user_connected(self, username: str) -> None:
+        """Triggers when the server gains a new users connected"""
+        if self._user_connected_recieved_callback is not None:
+            self._user_connected_recieved_callback(username)
+
+    def users_connected(self, users: list[str]) -> None:
+        """
+        Triggers when after the user is authenticated,
+        let the client know what users are online
+        """
+        if self._users_connected_callback is not None:
+            self._users_connected_callback(users)
+    
+    def remove_user(self, user: str) -> None:
+        """
+        Triggers when another client disconnects from the server
+        """
+        if self._remove_user_callback is not None:
+            self._remove_user_callback(user)
 
 class ActiveClient():
     """A class that represents the client connection"""
@@ -177,5 +203,29 @@ class ActiveClient():
         print("got a CommandSendChat")
         print(f"{server_request.username}, {server_request.message}")
         self._callbacks.chat_recieved(server_request.username, server_request.message)
+
+        return None
+
+    @_handle.register
+    def _(self, server_request: CommandConnectedUsers) -> Command:
+        print("got a CommandConnectedUsers")
+        print(f"{server_request.users}")
+        self._callbacks.users_connected(server_request.users)
+
+        return None
+
+    @_handle.register
+    def _(self, server_request: CommandUserConnected) -> Command:
+        print("got a CommandUserConnected")
+        print(f"{server_request.username}")
+        self._callbacks.user_connected(server_request.username)
+
+        return None
+
+    @_handle.register
+    def _(self, server_request: CommandRemoveUser) -> Command:
+        print("got a CommandRemoveUser")
+        print(f"{server_request.username}")
+        self._callbacks.remove_user(server_request.username)
 
         return None

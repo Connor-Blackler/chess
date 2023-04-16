@@ -2,7 +2,7 @@
 
 from client.client import ActiveClient
 from client.login import AuthenciateUser
-from client.client_main_window import main_window
+from client.client_main_window import MainWindow
 
 def _retrieve_authenticated_user() -> ActiveClient:
     ret = ActiveClient()
@@ -17,6 +17,6 @@ def main() -> None:
         quit()
 
     if my_client.is_successful():
-        this_window = main_window(my_client)
+        this_window = MainWindow(my_client)
 
 main()
