@@ -1,7 +1,7 @@
 """Code to show the main window UI"""
 from PyQt5.QtWidgets import QMainWindow,QApplication
 from PyQt5 import uic
-from shared_server_client_coms.commands import CommandSendChat,CommandRequestUsers
+from shared_server_client_coms.commands import CommandSendChat,CommandRequestUsers,CommandChatGPTRequest
 from .client import ActiveClient,EventCallbacks
 
 class _MyMainWindowQT(QMainWindow):
@@ -35,8 +35,15 @@ class MainWindow:
         self._app.exec_()
 
     def _message_btn_clicked(self) -> None:
-        self.client.send_command(CommandSendChat(self.client.get_username(),
-                                                 self._window.send_message_box.toPlainText()))
+        user_requested_message = self._window.send_message_box.toPlainText()
+
+        if "ChatGPT:" in user_requested_message:
+            self.client.send_command(CommandChatGPTRequest(self.client.get_username(),
+                                                           user_requested_message))
+        else:
+            self.client.send_command(CommandSendChat(self.client.get_username(),
+                                                    user_requested_message))
+
         self._window.send_message_box.setPlainText("")
 
     def _message_recieved_callback(self, username: str, message: str) -> None:

@@ -76,3 +76,12 @@ def test_command_remove_user() -> None:
     my_command = CommandRemoveUser(user)
 
     assert my_command.username == user
+
+def test_command_chat_gpt_request() -> None:
+    user = "bob"
+    message = "testing"
+
+    my_command = CommandChatGPTRequest(user,message)
+
+    assert my_command.username == user
+    assert my_command.message == message

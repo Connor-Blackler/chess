@@ -13,6 +13,7 @@ from shared_python.shared_hmac.hmac import Digestable
 from shared_server_client_coms.authenticate_params import *
 from shared_server_client_coms.commands import *
 from shared_server_client_coms.transform_data import get_transfer_data,validate_data
+from shared_python.shared_open_ai.chat import OpenAIChat
 from .server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
 from .server_data import UserDatabase,DatabaseInsertState
 
@@ -23,6 +24,7 @@ class _ActiveClient:
         self.__digestable_key = str(uuid.uuid4())
         self._communication_socket = communication_socket
         self.username = ""
+        self.__chat_bot = OpenAIChat()
 
         listen_thread = threading.Thread(target=self._listen, args=(communication_socket,))
         listen_thread.start()
@@ -119,6 +121,15 @@ class _ActiveClient:
 
         return CommandConnectedUsers(ActiveServer().get_users())
 
+    @_handle.register
+    def _(self, server_request: CommandChatGPTRequest) -> Command:
+        print("got a CommandChatGPTRequest")
+        ActiveServer().announce(
+            CommandSendChat(server_request.username, server_request.message))
+
+        chat_response = self.__chat_bot.send_message(server_request.message)
+
+        return CommandSendChat("ChatGPT", chat_response)
 
 @singleton
 class ActiveServer():
@@ -151,7 +162,7 @@ class ActiveServer():
 
     def get_users(self) -> list[str]:
         """Returns a list of active users"""
-        ret = []
+        ret = ["ChatGPT"]
         for this_user in self._clients:
             ret.append(this_user.username)
 

@@ -53,3 +53,9 @@ class CommandRemoveUser(Command):
 
 class CommandRequestUsers(Command):
     """A command that will ask the server the list of connected clients"""
+
+class CommandChatGPTRequest(Command):
+    """A command that will request information from ChatGPT"""
+    def __init__(self, username: str, message: str) -> None:
+        self.username = username
+        self.message = message

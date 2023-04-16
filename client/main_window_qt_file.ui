@@ -604,6 +604,9 @@ border-radius: 10px</string>
         <property name="styleSheet">
          <string notr="true">background-color: rgb(78, 78, 80)</string>
         </property>
+        <property name="placeholderText">
+         <string>Use &quot;ChatGPT:&quot; followed by your message to send a message directly to ChatGPT!</string>
+        </property>
        </widget>
        <widget class="QPushButton" name="send_message_btn">
         <property name="geometry">
