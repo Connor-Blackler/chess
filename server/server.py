@@ -95,7 +95,8 @@ class _ActiveClient:
         self.username = server_request.username
         authentication_status = ActiveServer().authenticate_user(server_request.username, server_request.password)
         print(f"Authentication request: {server_request.username}:result: {str(authentication_status)}")
-        ActiveServer().announce(CommandUserConnected(server_request.username))
+        if authentication_status == AuthStatus.SUCCESS:
+            ActiveServer().announce(CommandUserConnected(server_request.username))
         return CommandAuthenticateUserResponse(authentication_status)
 
     @_handle.register
@@ -145,7 +146,7 @@ class ActiveServer():
         if client in self._clients:
             print(f"removing client {client}")
             self._clients.remove(client)
-            self.announce(CommandSendChat("Server:", f"{client.username} has left the chat."))
+            self.announce(CommandSendChat("Server", f"{client.username} has left the chat."))
             self.announce(CommandRemoveUser(client.username))
 
     def get_users(self) -> list[str]:

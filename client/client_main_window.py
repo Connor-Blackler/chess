@@ -1,5 +1,5 @@
 """Code to show the main window UI"""
-from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QMainWindow,QApplication
 from PyQt5 import uic
 from shared_server_client_coms.commands import CommandSendChat,CommandRequestUsers
 from .client import ActiveClient,EventCallbacks
