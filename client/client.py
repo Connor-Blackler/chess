@@ -9,10 +9,11 @@ import sys
 from dataclasses import dataclass
 from functools import singledispatchmethod
 from typing import Callable
-from server.server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
+from server.server_details import SERVER_HOST, SERVER_PORT, initial_digest_key
 from shared_server_client_coms.authenticate_params import *
 from shared_server_client_coms.commands import *
-from shared_server_client_coms.transform_data import Digestable,validate_data,get_transfer_data
+from shared_server_client_coms.transform_data import Digestable, validate_data, get_transfer_data
+
 
 @dataclass
 class UserDetails():
@@ -21,18 +22,23 @@ class UserDetails():
     password: str = ""
     authentication_status: AuthStatus = AuthStatus.PENDING
 
+
 class EventCallbacks():
     """A callback-like class to allow users to override the desired methods
     acting like a callback
     """
+
     def __init__(self,
-                 authenticate_user_response_callback: Callable[[AuthStatus], None] = None,
+                 authenticate_user_response_callback: Callable[[
+                     AuthStatus], None] = None,
                  successful_connection_callback: Callable[[], None] = None,
                  connection_error_callback: Callable[[], None] = None,
-                 create_user_response_callback: Callable[[CreateUserStatus], None] = None,
+                 create_user_response_callback: Callable[[
+                     CreateUserStatus], None] = None,
                  chat_recieved_callback: Callable[[str, str], None] = None,
                  users_connected_recieved: Callable[[list[str]], None] = None,
-                 user_connected_recieved_callback: Callable[[str], None] = None,
+                 user_connected_recieved_callback: Callable[[
+                     str], None] = None,
                  remove_user_callback: Callable[[str], None] = None) -> None:
 
         self._authenticate_user_response_callback = authenticate_user_response_callback
@@ -71,7 +77,7 @@ class EventCallbacks():
     def chat_recieved(self, username: str, message: str) -> None:
         """Triggers when the server recieves a chat message from another client"""
         if self._chat_recieved_callback is not None:
-            self._chat_recieved_callback(username,message)
+            self._chat_recieved_callback(username, message)
 
     def user_connected(self, username: str) -> None:
         """Triggers when the server gains a new users connected"""
@@ -85,7 +91,7 @@ class EventCallbacks():
         """
         if self._users_connected_callback is not None:
             self._users_connected_callback(users)
-    
+
     def remove_user(self, user: str) -> None:
         """
         Triggers when another client disconnects from the server
@@ -93,16 +99,19 @@ class EventCallbacks():
         if self._remove_user_callback is not None:
             self._remove_user_callback(user)
 
+
 class ActiveClient():
     """A class that represents the client connection"""
+
     def __init__(self, callbacks: EventCallbacks = EventCallbacks()) -> None:
         self._callbacks = callbacks
         self._digest = Digestable(initial_digest_key())
         self._user_details: UserDetails = None
 
         try:
-            self._communication_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._communication_socket.connect((SERVER_HOST,SERVER_PORT))
+            self._communication_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
+            self._communication_socket.connect((SERVER_HOST, SERVER_PORT))
 
             self._listen_thread = threading.Thread(target=self._listen,
                                                    args=(self._communication_socket,), daemon=True)
@@ -202,7 +211,8 @@ class ActiveClient():
     def _(self, server_request: CommandSendChat) -> Command:
         print("got a CommandSendChat")
         print(f"{server_request.username}, {server_request.message}")
-        self._callbacks.chat_recieved(server_request.username, server_request.message)
+        self._callbacks.chat_recieved(
+            server_request.username, server_request.message)
 
         return None
 

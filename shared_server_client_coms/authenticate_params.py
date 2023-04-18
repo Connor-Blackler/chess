@@ -1,6 +1,7 @@
 """All logic used to authenticate the users credentials"""
 
-from enum import Enum,auto
+from enum import Enum, auto
+
 
 class AuthStatus(Enum):
     """Different states that represent the userauthentication result"""
@@ -9,6 +10,7 @@ class AuthStatus(Enum):
     INCORRECT_USER = auto()
     INCORRECT_PASSWORD = auto()
     PENDING = auto()
+
 
 class CreateUserStatus(Enum):
     """Different states that represent the user creation result"""

@@ -3,15 +3,17 @@
 unqiue salted encrpytion is used for each user, stored in seperate databases
 """
 import sqlite3
-from enum import Enum,auto
-from shared_python.shared_database.passwords import hash_password,is_correct_password
+from enum import Enum, auto
+from shared_python.shared_database.passwords import hash_password, is_correct_password
 from shared_server_client_coms.authenticate_params import *
+
 
 class DatabaseInsertState(Enum):
     """Enum that represents database key entry"""
     SUCCESS = auto()
     DATABASE_ERROR = auto()
     ALREADY_EXISTS = auto()
+
 
 class _PasswordDatabase():
     def __init__(self) -> None:
@@ -47,11 +49,13 @@ class _PasswordDatabase():
             (?,?);""", (user_id, salt))
 
         self._connection.commit()
-        
+
+
 class UserDatabase():
     """A class that represents the user -> password database, with the salt database
     hidden in the back-end
     """
+
     def __init__(self) -> None:
         self._connection = sqlite3.connect("users.db", check_same_thread=False)
         self._cursor = self._connection.cursor()
@@ -107,7 +111,7 @@ class UserDatabase():
 
             return DatabaseInsertState.SUCCESS
 
-    def confirm_password(self, username:str, password: str) -> AuthStatus:
+    def confirm_password(self, username: str, password: str) -> AuthStatus:
         """Determines if the username matches the password stored in the database"""
         user_id = self._get_user_id(username)
         if user_id is None:
@@ -116,7 +120,7 @@ class UserDatabase():
         hashed_password = self._get_user_password(user_id)
         salt = self._password_database.get_salt(user_id)
 
-        if is_correct_password(salt,hashed_password,password):
+        if is_correct_password(salt, hashed_password, password):
             return AuthStatus.SUCCESS
         else:
             return AuthStatus.INCORRECT_PASSWORD

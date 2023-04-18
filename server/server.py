@@ -12,13 +12,15 @@ from shared_python.shared_design_patterns.singleton_decorator import singleton
 from shared_python.shared_hmac.hmac import Digestable
 from shared_server_client_coms.authenticate_params import *
 from shared_server_client_coms.commands import *
-from shared_server_client_coms.transform_data import get_transfer_data,validate_data
+from shared_server_client_coms.transform_data import get_transfer_data, validate_data
 from shared_python.shared_open_ai.chat import OpenAIChat
-from .server_details import SERVER_HOST,SERVER_PORT,initial_digest_key
-from .server_data import UserDatabase,DatabaseInsertState
+from .server_details import SERVER_HOST, SERVER_PORT, initial_digest_key
+from .server_data import UserDatabase, DatabaseInsertState
+
 
 class _ActiveClient:
     """A class that represents the client connection held by the server"""
+
     def __init__(self, communication_socket: socket.socket) -> None:
         self.__active = True
         self.__digestable_key = str(uuid.uuid4())
@@ -26,7 +28,8 @@ class _ActiveClient:
         self.username = ""
         self.__chat_bot = OpenAIChat()
 
-        listen_thread = threading.Thread(target=self._listen, args=(communication_socket,))
+        listen_thread = threading.Thread(
+            target=self._listen, args=(communication_socket,))
         listen_thread.start()
 
     def kill(self):
@@ -95,8 +98,10 @@ class _ActiveClient:
         print("got a CommandAuthenticateUser")
 
         self.username = server_request.username
-        authentication_status = ActiveServer().authenticate_user(server_request.username, server_request.password)
-        print(f"Authentication request: {server_request.username}:result: {str(authentication_status)}")
+        authentication_status = ActiveServer().authenticate_user(
+            server_request.username, server_request.password)
+        print(
+            f"Authentication request: {server_request.username}:result: {str(authentication_status)}")
         if authentication_status == AuthStatus.SUCCESS:
             ActiveServer().announce(CommandUserConnected(server_request.username))
         return CommandAuthenticateUserResponse(authentication_status)
@@ -104,7 +109,8 @@ class _ActiveClient:
     @_handle.register
     def _(self, server_request: CommandCreateUser) -> Command:
         print("got a CommandCreateUser")
-        authentication_status = ActiveServer().create_user(server_request.username, server_request.password)
+        authentication_status = ActiveServer().create_user(
+            server_request.username, server_request.password)
         print(authentication_status)
         return CommandCreateUserResponse(authentication_status)
 
@@ -134,13 +140,15 @@ class _ActiveClient:
 
         return None
 
+
 @singleton
 class ActiveServer():
     """A class that represents the server"""
+
     def __init__(self) -> None:
         self._clients: list[_ActiveClient] = []
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server_socket.bind((SERVER_HOST,SERVER_PORT))
+        self._server_socket.bind((SERVER_HOST, SERVER_PORT))
         self._server_socket.listen()
         self._users = UserDatabase()
 
@@ -160,7 +168,8 @@ class ActiveServer():
         if client in self._clients:
             print(f"removing client {client}")
             self._clients.remove(client)
-            self.announce(CommandSendChat("Server", f"{client.username} has left the chat."))
+            self.announce(CommandSendChat(
+                "Server", f"{client.username} has left the chat."))
             self.announce(CommandRemoveUser(client.username))
 
     def get_users(self) -> list[str]:
@@ -175,7 +184,7 @@ class ActiveServer():
         """Determine if the client's user name as password is correct"""
         return self._users.confirm_password(username, password)
 
-    def create_user(self, username:str, password: str) -> CreateUserStatus:
+    def create_user(self, username: str, password: str) -> CreateUserStatus:
         """Attempt to create a new user with the given username and password"""
         error = self._users.inser_user(username, password)
         if error == DatabaseInsertState.ALREADY_EXISTS:

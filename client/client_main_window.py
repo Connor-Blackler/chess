@@ -1,14 +1,16 @@
 """Code to show the main window UI"""
-from PyQt5.QtWidgets import QMainWindow,QApplication
+from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5 import uic
-from shared_server_client_coms.commands import CommandSendChat,CommandRequestUsers,CommandChatGPTRequest
-from .client import ActiveClient,EventCallbacks
+from shared_server_client_coms.commands import CommandSendChat, CommandRequestUsers, CommandChatGPTRequest
+from .client import ActiveClient, EventCallbacks
+
 
 class _MyMainWindowQT(QMainWindow):
     def __init__(self):
         super(_MyMainWindowQT, self).__init__()
         uic.loadUi("client/main_window_qt_file.ui", self)
         self.show()
+
 
 class MainWindow:
     def __init__(self, client: ActiveClient) -> None:
@@ -17,7 +19,8 @@ class MainWindow:
         self._app = QApplication([])
         self._window = _MyMainWindowQT()
 
-        self._window.send_message_btn.clicked.connect(self._message_btn_clicked)
+        self._window.send_message_btn.clicked.connect(
+            self._message_btn_clicked)
 
         callbacks = EventCallbacks(
             None,
@@ -42,7 +45,7 @@ class MainWindow:
                                                            user_requested_message))
         else:
             self.client.send_command(CommandSendChat(self.client.get_username(),
-                                                    user_requested_message))
+                                                     user_requested_message))
 
         self._window.send_message_box.setPlainText("")
 

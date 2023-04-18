@@ -1,11 +1,13 @@
 """A module to handle client login UI"""
 from mttkinter import mtTkinter as tk
 from shared_server_client_coms.authenticate_params import *
-from .client import ActiveClient,EventCallbacks,UserDetails
+from .client import ActiveClient, EventCallbacks, UserDetails
 from shared_server_client_coms.authenticate_params import CreateUserStatus
+
 
 class AuthenciateUser():
     """An object that handles all the ui to retrieve authenticated user details from the user"""
+
     def __init__(self, active_client: ActiveClient) -> None:
         self._active_client = active_client
 
@@ -23,31 +25,34 @@ class AuthenciateUser():
 
         user_details_frame = tk.Frame()
 
-        my_label = tk.Label(user_details_frame, text="Username:", font=('Arial', 9))
-        my_label.grid(row=0,column=0)
+        my_label = tk.Label(user_details_frame,
+                            text="Username:", font=('Arial', 9))
+        my_label.grid(row=0, column=0)
 
-        my_label = tk.Label(user_details_frame, text="Password:", font=('Arial', 9))
-        my_label.grid(row=1,column=0)
+        my_label = tk.Label(user_details_frame,
+                            text="Password:", font=('Arial', 9))
+        my_label.grid(row=1, column=0)
 
         self.my_user_name_entry = tk.Entry(user_details_frame)
-        self.my_user_name_entry.grid(row=0,column=1)
+        self.my_user_name_entry.grid(row=0, column=1)
 
         self.my_password_entry = tk.Entry(user_details_frame, show="*")
-        self.my_password_entry.grid(row=1,column=1)
+        self.my_password_entry.grid(row=1, column=1)
 
         user_details_frame.pack(padx=20, pady=10)
 
         login_signup_frame = tk.Frame()
         my_sign_up_button = tk.Button(login_signup_frame, text="Sign up",
                                       command=self._handle_signup_button_click)
-        my_sign_up_button.grid(row=2,column=0,padx=24)
+        my_sign_up_button.grid(row=2, column=0, padx=24)
 
         my_login_button = tk.Button(login_signup_frame, text="Login",
                                     command=self._handle_login_button_click)
-        my_login_button.grid(row=2,column=1,padx=24)
+        my_login_button.grid(row=2, column=1, padx=24)
         login_signup_frame.pack(padx=20, pady=10)
 
-        self.server_status_label = tk.Label(self.main_window, text="", font=('Arial', 9))
+        self.server_status_label = tk.Label(
+            self.main_window, text="", font=('Arial', 9))
         self.server_status_label.pack(padx=20, pady=10)
 
         self._active_client.register_event_callback(EventCallbacks(
@@ -67,7 +72,7 @@ class AuthenciateUser():
         self.server_status_label["text"] = ""
 
         self._active_client.create_user(UserDetails(
-            self.my_user_name_entry.get(),self.my_password_entry.get()))
+            self.my_user_name_entry.get(), self.my_password_entry.get()))
 
     def _handle_login_button_click(self) -> None:
         self.my_password_entry["state"] = "disable"
@@ -75,7 +80,7 @@ class AuthenciateUser():
         self.server_status_label["text"] = ""
 
         self._active_client.authenticate_user(UserDetails(
-            self.my_user_name_entry.get(),self.my_password_entry.get()))
+            self.my_user_name_entry.get(), self.my_password_entry.get()))
 
     def _succesful_connection_callback(self) -> None:
         self.server_status_label["text"] = "server_contact_success"
