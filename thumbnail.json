@@ -2,6 +2,6 @@
 	"title": "Chess Game with Chat Room",
 	"image": "https://images.chesscomfiles.com/uploads/v1/images_users/tiny_mce/CHESScom/phphK5JVu.png",
 	"description": "A Chess game that allows you to chat with other players, It also includes ChatGPT as a person to chat to, ask him questions and he will respond!",
-	"language": ["Python","ChatGPT"],
-	"language_bg": ["#3572A5","#73A697"]
+	"language": ["Python","ChatGPT", "SQL"],
+	"language_bg": ["#3572A5","#73A697", "#DB7533"]
 }
